@@ -118,7 +118,7 @@ jobs:
         run: |
           set -euo pipefail
           if [[ -z $RELEASE_TAG ]]; then
-            "$GITHUB_WORKSPACE/scripts/gh-retry" api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --paginate --jq '.[].tag_name' > existing-tags
+            "$GITHUB_WORKSPACE/scripts/gh-retry" api "repos/$GITHUB_REPOSITORY/releases?per_page=20" --paginate --jq '.[].tag_name' > existing-tags
             prefix=testing-
             [[ $FEDORA_RELEASE == 44 ]] || prefix=testing-f45-
             RELEASE_TAG=$(python3 scripts/next-tag.py "$prefix" < existing-tags)
