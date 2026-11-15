@@ -1090,6 +1090,38 @@ soc@200000000 {{ {first_soc} }}; soc@2308000000 {{}}; soc {{ {plain_soc} }}; }};
             self.apply()
 
 
+class DtbNodesTests(unittest.TestCase):
+    @staticmethod
+    def blob(*tokens):
+        struct = b''.join(tokens)
+        # Only off_dt_struct (bytes 8-12) is read; the structure follows the header.
+        return b'\xd0\x0d\xfe\xed' + bytes(4) + (40).to_bytes(4, 'big') + bytes(28) + struct
+
+    @staticmethod
+    def token(value, data=b''):
+        data += bytes(-len(data) % 4)
+        return value.to_bytes(4, 'big') + data
+
+    def test_nodes_skip_nop_and_properties(self):
+        begin, end, prop, nop = (bootchain.FDT_BEGIN_NODE, bootchain.FDT_END_NODE,
+                                 bootchain.FDT_PROP, bootchain.FDT_NOP)
+        blob = self.blob(self.token(begin, b'\0'), self.token(nop),
+                         self.token(begin, b'soc@200000000\0'), self.token(end),
+                         self.token(begin, b'soc\0'),
+                         self.token(prop, (5).to_bytes(4, 'big') + bytes(4) + b'abcde'),
+                         self.token(nop), self.token(begin, b'dcp@48ae00000\0'),
+                         self.token(end), self.token(end), self.token(end),
+                         self.token(bootchain.FDT_END))
+        self.assertEqual(bootchain.dtb_nodes(blob),
+                         {'/', '/soc@200000000', '/soc', '/soc/dcp@48ae00000'})
+
+    def test_unknown_token_refused(self):
+        blob = self.blob(self.token(bootchain.FDT_BEGIN_NODE, b'\0'), self.token(7),
+                         self.token(bootchain.FDT_END_NODE), self.token(bootchain.FDT_END))
+        with self.assertRaisesRegex(bootchain.Refused, 'invalid Stage 2 DTB structure'):
+            bootchain.dtb_nodes(blob)
+
+
 class GrubOrderTests(unittest.TestCase):
     def test_version_comparison_is_rpms(self):
         for a, b, expected in [('1.0', '1.0', 0), ('1.0', '2.0', -1), ('2.0.1', '2.0', 1),
