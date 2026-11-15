@@ -14,7 +14,7 @@
 %global ctxr_execmem 1
 Name: kernel-aurora
 Version: 7.3.0
-Release: 40%{?dist}.aurora
+Release: 41%{?dist}.aurora
 Summary: Aurora kernel for Apple Silicon Macs
 License: GPL-2.0-only
 URL: https://github.com/aurora-silicon/linux
@@ -176,6 +176,12 @@ fi
 %{_docdir}/aurora-userpages/
 
 %changelog
+* Mon Nov 16 2026 Ryan Murray <ryan@aurorasilicon.org> - 7.3.0-41
+- Require avd-fw 0.1-3 or later, so a kernel installed or upgraded on its
+  own always has the video decoder firmware it loads (queue ABI 2 with
+  per-image codec VP pools). Without it the decoder fails to probe with
+  -ENOENT and its power domains never reach sync_state.
+
 * Sat Nov 14 2026 Diljit Singh <hey@djdev.me> - 7.3.0-40
 - Pin cand/7.3.0-40 9125b314, the MacBook Neo (J700) rig's release
   candidate kernel (qualified on hardware first); 2 first-parent commits
@@ -321,10 +327,6 @@ fi
 - Require aura 1.0.0~b12 or later: with #1298's fabric power states, 1.0.0~b11
   cannot enable the MacBook Neo's encoder 0 (aura#190).
   vmlinuz stays the raw Image, and dtb-abi is unchanged (generation 1).
-- Require avd-fw 0.1-3 or later, so a kernel installed or upgraded on its
-  own always has the video decoder firmware it loads (queue ABI 2 with
-  per-image codec VP pools). Without it the decoder fails to probe with
-  -ENOENT and its power domains never reach sync_state.
 
 * Thu Nov 12 2026 Ryan Murray <ryan@aurorasilicon.org> - 7.3.0-35
 - Require aura 1.0.0~b11 or later. On the MacBook Neo this kernel's DT
