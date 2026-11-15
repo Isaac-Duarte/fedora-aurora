@@ -1,6 +1,6 @@
 Name: update-m1n1
 Version: 20261107
-Release: 8%{?dist}.aurora
+Release: 9%{?dist}.aurora
 Summary: Transactional Aurora Stage 2 updates with retained-kernel DTB checks
 License: MIT
 URL: https://github.com/aurora-silicon/fedora-aurora
@@ -107,6 +107,12 @@ AURORA_RPM_TRANSACTION_PID=$PPID %{_sbindir}/update-m1n1 --transaction-begin || 
 %config(noreplace) %{_sysconfdir}/sysconfig/update-m1n1
 
 %changelog
+* Sun Nov 15 2026 Isaac Duarte <31712685+Isaac-Duarte@users.noreply.github.com> - 20261107-9
+- Find the node a display alias names by its exact path. fdtget resolves
+  a component without a unit address, such as /soc, to the first soc@...
+  sibling, so on T6050 trees (soc@200000000, soc@2308000000 and soc) a
+  DCP under the plain soc looked missing and Stage 2 trials were refused.
+
 * Sun Nov 15 2026 Diljit Singh <hey@djdev.me> - 20261107-8
 - A reinstall of the GRUB default kernel no longer arms a Stage 2 trial
   with another kernel's device trees. dnf runs kernel-install remove for

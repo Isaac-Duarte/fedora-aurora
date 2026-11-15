@@ -909,6 +909,29 @@ soc { dcp {}; display {}; }; };''')
         self.apply()
         self.assertTrue(self.marker.exists())
 
+    def soc_siblings(self, first_soc, plain_soc):
+        # T6050 has soc@200000000, soc@2308000000 and soc; fdtget -p resolves
+        # /soc to the first soc@... sibling.
+        self.trial_setup()
+        self.put('/proc/device-tree/aliases/dcp', b'/soc/dcp@48ae00000\0')
+        dts = f'''/dts-v1/; / {{ compatible = "apple,j413", "apple,t8112";
+aliases {{ dcp = "/soc/dcp@48ae00000"; }};
+soc@200000000 {{ {first_soc} }}; soc@2308000000 {{}}; soc {{ {plain_soc} }}; }};'''
+        blob = subprocess.check_output(['dtc', '-q', '-I', 'dts', '-O', 'dtb'], input=dts.encode())
+        self.put('/usr/lib/modules/7.3/dtb/apple/t8112-j413.dtb', blob)
+
+    def test_display_alias_node_under_unit_less_soc(self):
+        self.soc_siblings(first_soc='', plain_soc='dcp@48ae00000 { reg = <1>; };')
+        self.apply()
+        self.assertTrue(self.marker.exists())
+
+    def test_display_alias_node_under_other_soc(self):
+        self.soc_siblings(first_soc='dcp@48ae00000 { reg = <1>; };', plain_soc='')
+        with self.assertRaisesRegex(bootchain.Refused, 'display alias dcp has no node'):
+            self.apply()
+        self.assertFalse(self.marker.exists())
+        self.assertEqual(self.target.read_bytes(), b'GOOD-STAGE2')
+
     def test_corrupt_candidate_cannot_commit(self):
         self.trial_setup()
         self.apply()

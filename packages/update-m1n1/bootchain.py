@@ -37,6 +37,37 @@ class Tree(dict):
         return {name: data for name, data in self.items() if board in self.boards[name]}
 
 
+# FDT structure block tokens
+FDT_BEGIN_NODE, FDT_END_NODE, FDT_PROP, FDT_NOP, FDT_END = 1, 2, 3, 4, 9
+
+
+def dtb_nodes(blob):
+    """Every node path in a validated FDT, spelled exactly.
+
+    fdtget resolves a component without a unit address, such as /soc, to the
+    first soc@... sibling. T6050 trees have soc@200000000, soc@2308000000 and
+    soc, so a node under the plain soc looked missing.
+    """
+    offset = int.from_bytes(blob[8:12], 'big')
+    nodes, stack = set(), []
+    while True:
+        token = int.from_bytes(blob[offset:offset + 4], 'big')
+        offset += 4
+        if token == FDT_BEGIN_NODE:
+            end = blob.index(b'\0', offset)
+            stack.append(blob[offset:end].decode())
+            nodes.add('/' + '/'.join(stack[1:]))
+            offset = (end + 4) & ~3
+        elif token == FDT_END_NODE:
+            stack.pop()
+        elif token == FDT_PROP:
+            offset = (offset + 8 + int.from_bytes(blob[offset:offset + 4], 'big') + 3) & ~3
+        elif token == FDT_END:
+            return nodes
+        elif token != FDT_NOP:
+            raise Refused('invalid Stage 2 DTB structure')
+
+
 def sync_dir(path):
     fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY)
     try:
@@ -588,14 +619,14 @@ class Update:
                 compatible = subprocess.check_output(
                     ['fdtget', '-t', 's', stream.name, '/', 'compatible'], text=True).split()
                 if board in compatible:
+                    nodes = dtb_nodes(blob)
                     for alias in required:
                         found = subprocess.run(['fdtget', '-t', 's', stream.name, '/aliases', alias],
                                                capture_output=True, text=True)
                         node = found.stdout.strip()
                         if found.returncode or not node.startswith('/'):
                             raise Refused(f'{board} DTB lacks display alias {alias}')
-                        exists = subprocess.run(['fdtget', '-p', stream.name, node], capture_output=True)
-                        if exists.returncode:
+                        if node not in nodes:
                             raise Refused(f'{board} DTB display alias {alias} has no node')
                     matched = True
             offset += size
